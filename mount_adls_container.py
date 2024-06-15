@@ -10,9 +10,9 @@ dbutils.secrets.listScopes()
 # COMMAND ----------
 
 adb_secrete_scope_name='ramg-de-scope'
-tenant_id=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-de-app-tenant-id')
-client_id=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-de-app-client-id')
-client_secret=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-de-app-client-secret')
+tenant_id=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-adb-app-tenant-id')
+client_id=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-adb-app-client-id')
+client_secret=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-adb-app-client-secret')
 
 # COMMAND ----------
 
@@ -21,15 +21,36 @@ client_secret=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-de
 
 # COMMAND ----------
 
-storage_account_name = "rawincrementaldata"
-container_name = "raw-container"
-raw_incremental_folder='incremental-data-tables'
+storage_account_name = "onlineretaildataramg"
+landing_container_name = "landing-zone"
+bronze_container_name = "bronze"
+silver_container_name = "silver"
+gold_container_name='gold'
 
-watermark_folder='watermarkdb'
+# COMMAND ----------
 
-sourcefile_stoarge_account_name="ramgdesourcestorage"
-sourcefile_container='sourcefile-container'
-input_folder="input"
+# MAGIC %md
+# MAGIC ##### common function to mount containers
+
+# COMMAND ----------
+
+def mount_container(mount_path,container_name,storage_account_name):
+    # Check if mount point exists
+    if not any(mount.mountPoint == mount_path for mount in dbutils.fs.mounts()):
+        # Mount the container
+      configs = {"fs.azure.account.auth.type": "OAuth",
+                "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
+                "fs.azure.account.oauth2.client.id": client_id,
+                "fs.azure.account.oauth2.client.secret": client_secret,
+                "fs.azure.account.oauth2.client.endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"}
+      print('Configs initialized')
+      dbutils.fs.mount(
+        source=f"abfss://{container_name}@{storage_account_name}.dfs.core.windows.net",
+        mount_point=mount_path,
+        extra_configs=configs)
+      print(f'{mount_path} mounted successfully.')  
+    else:
+      print('Mount already created')
 
 # COMMAND ----------
 
@@ -38,57 +59,21 @@ input_folder="input"
 
 # COMMAND ----------
 
-raw_incremental_mount_point = f"/mnt/{container_name}/{raw_incremental_folder}"
-watermark_mount_point = f"/mnt/{container_name}/{watermark_folder}"
-autoloader_checkpoint = f"/mnt/{container_name}/autoloader_checkpoint"
+# Mount landing container
+landing_mount_point = f"/mnt/{landing_container_name}"
+mount_container(landing_mount_point,landing_container_name,storage_account_name)
 
-sourcefile_mount= f"/mnt/{sourcefile_container}/{input}"
-print(raw_incremental_mount_point)
-print(watermark_mount_point)
-print(sourcefile_mount)
+# Mount bronze container
+bronze_mount_point = f"/mnt/{bronze_container_name}"
+mount_container(bronze_mount_point,bronze_container_name,storage_account_name)
 
-# COMMAND ----------
+# Mount silver container
+silver_mount_point = f"/mnt/{silver_container_name}"
+mount_container(silver_mount_point,silver_container_name,storage_account_name)
 
-# MAGIC %md
-# MAGIC ##### mount raw-incremental-load folder
-
-# COMMAND ----------
-
-# Check if mount point exists
-if not any(mount.mountPoint == raw_incremental_mount_point for mount in dbutils.fs.mounts()):
-    # Mount the container
-  configs = {"fs.azure.account.auth.type": "OAuth",
-            "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
-            "fs.azure.account.oauth2.client.id": client_id,
-            "fs.azure.account.oauth2.client.secret": client_secret,
-            "fs.azure.account.oauth2.client.endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"}
-  print('Configs initialized')
-  dbutils.fs.mount(
-    source=f"abfss://{container_name}@{storage_account_name}.dfs.core.windows.net/{raw_incremental_folder}",
-    mount_point=raw_incremental_mount_point,
-    extra_configs=configs)
-  print('raw_incremental_mount_point mounted successfully.')  
-else:
-  print('Mount already created')
-
-# COMMAND ----------
-
-# Check if mount point exists
-if not any(mount.mountPoint == watermark_mount_point for mount in dbutils.fs.mounts()):
-    # Mount the container
-  configs = {"fs.azure.account.auth.type": "OAuth",
-            "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
-            "fs.azure.account.oauth2.client.id": client_id,
-            "fs.azure.account.oauth2.client.secret": client_secret,
-            "fs.azure.account.oauth2.client.endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"}
-  print('Configs initialized')
-  dbutils.fs.mount(
-    source=f"abfss://{container_name}@{storage_account_name}.dfs.core.windows.net/{watermark_folder}",
-    mount_point=watermark_mount_point,
-    extra_configs=configs)
-  print('watermark_mount_point mounted successfully.')  
-else:
-  print('Mount for watermark already created')
+# Mount gold container
+gold_mount_point = f"/mnt/{gold_container_name}"
+mount_container(gold_mount_point,gold_container_name,storage_account_name)
 
 # COMMAND ----------
 
@@ -103,28 +88,4 @@ display(dbutils.fs.mounts())
 # COMMAND ----------
 
 # MAGIC %fs
-# MAGIC ls /mnt/raw-container
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC Mount input source file stoarge
-
-# COMMAND ----------
-
-# Check if mount point exists
-if not any(mount.mountPoint == source_blob_mount for mount in dbutils.fs.mounts()):
-    # Mount the container
-  configs = {"fs.azure.account.auth.type": "OAuth",
-            "fs.azure.account.oauth.provider.type": "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider",
-            "fs.azure.account.oauth2.client.id": client_id,
-            "fs.azure.account.oauth2.client.secret": client_secret,
-            "fs.azure.account.oauth2.client.endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"}
-  print('Configs initialized')
-  dbutils.fs.mount(
-    source=f"abfss://{sourcefile_container}@{sourcefile_stoarge_account_name}.dfs.core.windows.net/{input}",
-    mount_point=sourcefile_mount,
-    extra_configs=configs)
-  print('sourcefile_container mounted successfully.')  
-else:
-  print('Mount for input blob storage already created')
+# MAGIC ls /mnt/
