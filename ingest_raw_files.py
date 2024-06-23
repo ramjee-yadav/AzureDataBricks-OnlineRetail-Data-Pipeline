@@ -26,6 +26,7 @@ df_read = spark.readStream
 # COMMAND ----------
 
 df_read.writeStream \
+    .trigger(once=True) \
     .format("delta") \
     .option("checkpointLocation", checkpoint_path) \
     .start(bronze_mount_path)
