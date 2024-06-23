@@ -12,7 +12,7 @@ This is a transaction data set that contains UK based non-store online retail tr
 ![RetailOnline-Data-Model](/images/RetailOnline-Data-Model.jpg)
 
 ## Pipeline Architecture
-![Data Pipeline Architecture](/images/OnlineRetail-Data-Pipeline-Architecture.jpg)
+![Data Pipeline Architecture](/images/OnlineRetail-Data-Pipeline-Architecture.png)
 
 ## Conclusion and Limitation
 This project is having only basic implementation. We can add data quality checks and additional business logics as per the requirenment. This project can be implemented differently including different data stacks. For the basic demonstartion workflow is created in Databricks only. If we want a robust orchestartion and scheduling support we can use ADF also.
