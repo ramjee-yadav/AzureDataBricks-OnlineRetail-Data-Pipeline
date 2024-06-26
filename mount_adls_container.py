@@ -22,10 +22,12 @@ client_secret=dbutils.secrets.get(scope = adb_secrete_scope_name, key = 'ramg-ad
 # COMMAND ----------
 
 storage_account_name = "onlineretaildataramg"
-landing_container_name = "landing-zone"
-bronze_container_name = "bronze"
-silver_container_name = "silver"
-gold_container_name='gold'
+conatiner_name = "onlineretail-lakehouse"
+landing_directory_name = "landing-zone"
+bronze_directory_name = "bronze"
+silver_directory_name = "silver"
+gold_directory_name='gold'
+checkpoint_directory_name = "checkpoints"
 
 # COMMAND ----------
 
@@ -34,7 +36,7 @@ gold_container_name='gold'
 
 # COMMAND ----------
 
-def mount_container(mount_path,container_name,storage_account_name):
+def mount_container(storage_account_name,container_name,directory_name,mount_path):
     # Check if mount point exists
     if not any(mount.mountPoint == mount_path for mount in dbutils.fs.mounts()):
         # Mount the container
@@ -45,7 +47,7 @@ def mount_container(mount_path,container_name,storage_account_name):
                 "fs.azure.account.oauth2.client.endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/token"}
       print('Configs initialized')
       dbutils.fs.mount(
-        source=f"abfss://{container_name}@{storage_account_name}.dfs.core.windows.net",
+        source=f"abfss://{container_name}@{storage_account_name}.dfs.core.windows.net/{directory_name}",
         mount_point=mount_path,
         extra_configs=configs)
       print(f'{mount_path} mounted successfully.')  
@@ -59,21 +61,25 @@ def mount_container(mount_path,container_name,storage_account_name):
 
 # COMMAND ----------
 
-# Mount landing container
-landing_mount_point = f"/mnt/{landing_container_name}"
-mount_container(landing_mount_point,landing_container_name,storage_account_name)
+# Mount landing 
+landing_mount_point = f"/mnt/{container_name}/{landing_directory_name}"
+mount_container(storage_account_name,container_name,landing_directory_name,landing_mount_point)
 
-# Mount bronze container
-bronze_mount_point = f"/mnt/{bronze_container_name}"
-mount_container(bronze_mount_point,bronze_container_name,storage_account_name)
+# Mount bronze 
+bronze_mount_point = f"/mnt/{container_name}/{bronze_directory_name}"
+mount_container(storage_account_name,container_name,bronze_directory_name,bronze_mount_point)
 
-# Mount silver container
-silver_mount_point = f"/mnt/{silver_container_name}"
-mount_container(silver_mount_point,silver_container_name,storage_account_name)
+# Mount silver 
+silver_mount_point = f"/mnt/{container_name}/{silver_directory_name}"
+mount_container(storage_account_name,container_name,silver_directory_name,silver_mount_point)
 
-# Mount gold container
-gold_mount_point = f"/mnt/{gold_container_name}"
-mount_container(gold_mount_point,gold_container_name,storage_account_name)
+# Mount gold 
+gold_mount_point = f"/mnt/{container_name}/{gold_directory_name}"
+mount_container(storage_account_name,container_name,gold_directory_name,gold_mount_point)
+
+# Mount checkpoint
+checkpoint_mount_point = f"/mnt/{container_name}/{checkpoint_directory_name}"
+mount_container(storage_account_name,container_name,checkpoint_directory_name,checkpoint_mount_point)
 
 # COMMAND ----------
 
